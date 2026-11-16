@@ -7,6 +7,7 @@ import { LiveTranscriber } from "./live";
 import { Recorder } from "./recorder";
 import { autoTitle, deleteNote, getNote, listNotes, newId, saveNote, search, type Note } from "./store";
 import { highlights, keywords } from "./summary";
+import { cue, setSound, soundOn } from "./sound";
 
 // ---------- settings ----------
 interface Settings { model: ModelSize; lang: string; theme: "system" | "light" | "dark"; ui: Lang }
@@ -142,6 +143,9 @@ function logo(): SVGElement {
 function toggles(): HTMLElement {
   return h("div", { class: "toggles" },
     h("button", { class: "chip", title: t("uiLang"), onclick: () => { settings.ui = getLang() === "tr" ? "en" : "tr"; setLang(settings.ui); saveSettings(); render(); } }, getLang() === "tr" ? "EN" : "TR"),
+    h("button", { class: "chip snd", title: t("sounds"), "aria-label": t("sounds"), "aria-pressed": String(soundOn()), onclick: (e: Event) => {
+      setSound(!soundOn()); (e.currentTarget as HTMLElement).setAttribute("aria-pressed", String(soundOn())); void cue("tap");
+    } }, h("span", { class: "spk", "aria-hidden": "true" })),
     h("button", { class: "chip", title: t("theme"), "aria-label": t("theme"), onclick: () => {
       const dark = document.documentElement.dataset.theme === "dark";
       settings.theme = dark ? "light" : "dark"; saveSettings(); applyTheme();
@@ -252,6 +256,7 @@ async function startRecording() {
   if (!navigator.mediaDevices?.getUserMedia || typeof AudioWorkletNode === "undefined") return toast(t("unsupported"));
   const live = new LiveTranscriber((pcm, offset) => engine.transcribe(pcm, offset, settings.lang), updateLive);
   const rec = new Recorder((block) => live.push(block));
+  await cue("start"); // finishes before the microphone opens
   try { await rec.start(); } catch { return toast(t("micDenied")); }
   session = { rec, live, started: Date.now(), pausedMs: 0, pausedAt: 0 };
   ensureModel().catch(() => {});
@@ -286,9 +291,11 @@ async function finishRecording() {
     };
     await saveNote(note);
     session = null; busy = "";
+    void cue("done");
     go(`#/note/${note.id}`);
   } catch (e) {
     session = null; busy = "";
+    void cue("error");
     toast(`${t("error")}: ${e instanceof Error ? e.message : e}`);
     render();
   }
@@ -320,9 +327,11 @@ async function importFile(f: File) {
     };
     await saveNote(note);
     busy = ""; fileSegs = [];
+    void cue("done");
     go(`#/note/${note.id}`);
   } catch (e) {
     busy = ""; fileSegs = [];
+    void cue("error");
     toast(`${t("error")}: ${e instanceof Error ? e.message : e}`);
     render();
   }

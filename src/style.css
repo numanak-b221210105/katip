@@ -273,3 +273,10 @@ audio { width: 100%; height: 40px; margin-bottom: 18px; }
 .toast.out { opacity: 0; }
 @media (min-width: 900px) { .toast { bottom: 28px; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* sound chip: a small speaker drawn in CSS */
+.spk { position: relative; width: 14px; height: 12px; }
+.spk::before { content: ""; position: absolute; left: 0; top: 3px; width: 5px; height: 6px; background: currentColor; border-radius: 1px; }
+.spk::after { content: ""; position: absolute; left: 3px; top: 0; border: 6px solid transparent; border-right-color: currentColor; border-left: 0; }
+.chip.snd[aria-pressed="false"] { opacity: .45; }
+.chip.snd[aria-pressed="false"] .spk { background: linear-gradient(135deg, transparent 45%, currentColor 45% 55%, transparent 55%); }

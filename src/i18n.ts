@@ -23,7 +23,7 @@ const dict = {
     error: "Bir sorun oldu", offline: "Çevrimdışısın — indirilmiş modelle çalışmaya devam eder.",
     duration: "Süre", created: "Oluşturma", fromMic: "Mikrofon", fromFile: "Dosya", words: "kelime",
     dropHere: "Ses ya da video dosyasını buraya bırak", back: "Geri", privacy: "Gizlilik",
-    gpu: "WebGPU (ekran kartı)", cpu: "WebAssembly (işlemci)",
+    gpu: "WebGPU (ekran kartı)", cpu: "WebAssembly (işlemci)", sounds: "Arayüz sesleri",
   },
   en: {
     tagline: "A notebook that turns speech into text and never sends it to the internet.",
@@ -48,7 +48,7 @@ const dict = {
     error: "Something went wrong", offline: "You're offline — it keeps working with the downloaded model.",
     duration: "Duration", created: "Created", fromMic: "Microphone", fromFile: "File", words: "words",
     dropHere: "Drop an audio or video file here", back: "Back", privacy: "Privacy",
-    gpu: "WebGPU (graphics card)", cpu: "WebAssembly (processor)",
+    gpu: "WebGPU (graphics card)", cpu: "WebAssembly (processor)", sounds: "Interface sounds",
   },
 } as const;
 export type Key = keyof typeof dict.tr;
