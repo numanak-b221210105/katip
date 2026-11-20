@@ -25,6 +25,8 @@
 - **Search** across every transcript.
 - **Turkish and English**, both for speech and for the interface. Light and dark themes.
 - **Installable and offline.** After the first visit and the one-time model download, it works without internet.
+- **Made for phones.** The screen stays on while recording (Screen Wake Lock), so a locked phone does not cut the recording. On Android, voice messages and audio files can be shared straight to Kâtip from any app (Web Share Target). On iPhone, a one-time hint shows how to add it to the Home Screen.
+- **Quiet interface sounds** (synthesized, no audio files) that never play while the microphone is open, so they never end up in a recording. They follow the phone's silent switch and can be turned off.
 
 ## How it works
 
@@ -113,6 +115,7 @@ tests/             Vitest
 - **TXT, Markdown, SRT, VTT** olarak dışa aktarma, kopyalama, telefonun paylaş menüsü.
 - Tüm notlarda **arama**; **Türkçe/İngilizce** konuşma ve arayüz; açık/koyu tema.
 - **Yüklenebilir ve çevrimdışı**: ilk açılış ve modelin bir kez indirilmesinden sonra internetsiz çalışır.
+- **Telefon için**: kayıt sırasında ekran kapanmaz; Android'de WhatsApp sesli mesajları ve ses dosyaları doğrudan Kâtip'e paylaşılabilir; iPhone'da ana ekrana ekleme ipucu çıkar.
 
 İlk kullanımda model indirilir (varsayılan *base* yaklaşık 80 MB). Hız cihaza bağlıdır: WebGPU olan bir bilgisayarda gerçek zamandan çok daha hızlı, eski bir telefonda *tiny* modeli önerilir. Anahtar kelimeler ve öne çıkanlar metindeki cümleleri seçer, yeni özet yazmaz. Tarayıcı depolaması silinebilir; saklamak istediğin notları dışa aktar.
 

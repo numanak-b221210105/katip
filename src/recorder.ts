@@ -19,6 +19,8 @@ export class Recorder {
   async start(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     this.ctx = new AudioContext();
+    // iOS creates contexts suspended outside a tap; capturing audio allows resuming.
+    if (this.ctx.state !== "running") await this.ctx.resume().catch(() => {});
     const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
     await this.ctx.audioWorklet.addModule(url);
     URL.revokeObjectURL(url);

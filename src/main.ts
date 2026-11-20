@@ -8,6 +8,7 @@ import { Recorder } from "./recorder";
 import { autoTitle, deleteNote, getNote, listNotes, newId, saveNote, search, type Note } from "./store";
 import { highlights, keywords } from "./summary";
 import { cue, setSound, soundOn } from "./sound";
+import { canInstall, installHint, keepAwake, onInstallable, promptInstall } from "./install";
 
 // ---------- settings ----------
 interface Settings { model: ModelSize; lang: string; theme: "system" | "light" | "dark"; ui: Lang }
@@ -65,7 +66,7 @@ let session: { rec: Recorder; live: LiveTranscriber; started: number; pausedMs: 
 let busy: "" | "finishing" | "file" = "";
 let fileProgress = 0;
 let modelState: { loading: boolean; pct: number; error?: string } = { loading: false, pct: 0 };
-let installPrompt: (Event & { prompt(): Promise<void> }) | null = null;
+let releaseAwake: (() => void) | null = null;
 let libraryQuery = "";
 
 engine.onProgress = (loaded, total) => {
@@ -126,7 +127,7 @@ function shell(view: string, main: HTMLElement): HTMLElement {
       h("p", { class: "tagline" }, t("tagline")),
       h("nav", { class: "sidenav" }, nav("#/", "home", "mic", v === "rec"), nav("#/settings", "settings", "gear", v === "settings")),
       libraryView(false),
-      h("div", { class: "side-foot" }, toggles(), installPrompt && h("button", { class: "btn ghost sm", onclick: install }, icon("dl"), t("install")))),
+      h("div", { class: "side-foot" }, toggles(), canInstall() && h("button", { class: "btn ghost sm", onclick: install }, icon("dl"), t("install")))),
     h("header", { class: "top" },
       h("a", { class: "brand", href: "#/" }, logo(), h("span", { class: "word" }, "Kâtip")), toggles()),
     h("main", { class: "main" }, main),
@@ -152,8 +153,8 @@ function toggles(): HTMLElement {
     } }, h("span", { class: "moon", "aria-hidden": "true" })));
 }
 
-async function install() { if (!installPrompt) return; await installPrompt.prompt(); installPrompt = null; render(); }
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installPrompt = e as typeof installPrompt; render(); });
+async function install() { await promptInstall(); render(); }
+onInstallable(() => render());
 
 // ---------- record view ----------
 let liveBox: HTMLElement | null = null;
@@ -259,6 +260,8 @@ async function startRecording() {
   await cue("start"); // finishes before the microphone opens
   try { await rec.start(); } catch { return toast(t("micDenied")); }
   session = { rec, live, started: Date.now(), pausedMs: 0, pausedAt: 0 };
+  // Phones stop recording when the screen locks: keep it on while we listen.
+  releaseAwake = await keepAwake();
   ensureModel().catch(() => {});
   await render();
   raf = requestAnimationFrame(tickUi);
@@ -278,6 +281,7 @@ async function finishRecording() {
   cancelAnimationFrame(raf);
   busy = "finishing";
   const blob = await s.rec.stop();
+  void cue("stop");
   render();
   const t0 = performance.now();
   try {
@@ -291,10 +295,12 @@ async function finishRecording() {
     };
     await saveNote(note);
     session = null; busy = "";
+    releaseAwake?.(); releaseAwake = null;
     void cue("done");
     go(`#/note/${note.id}`);
   } catch (e) {
     session = null; busy = "";
+    releaseAwake?.(); releaseAwake = null;
     void cue("error");
     toast(`${t("error")}: ${e instanceof Error ? e.message : e}`);
     render();
@@ -305,6 +311,7 @@ async function finishRecording() {
 let fileSegs: Segment[] = [];
 async function importFile(f: File) {
   busy = "file"; fileProgress = 0; fileSegs = [];
+  const awake = await keepAwake();
   await render();
   try {
     const [pcm] = await Promise.all([decodeFile(f), ensureModel()]);
@@ -326,10 +333,12 @@ async function importFile(f: File) {
       procMs: (engine.info?.procMs ?? 0) - procBefore, segments: fileSegs, audio: f.size < 200e6 ? f : toWav(pcm), source: "file",
     };
     await saveNote(note);
+    awake();
     busy = ""; fileSegs = [];
     void cue("done");
     go(`#/note/${note.id}`);
   } catch (e) {
+    awake();
     busy = ""; fileSegs = [];
     void cue("error");
     toast(`${t("error")}: ${e instanceof Error ? e.message : e}`);
@@ -472,4 +481,24 @@ window.addEventListener("beforeunload", (e) => { if (session || busy) e.preventD
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
-render();
+installHint({ app: "Kâtip", lang: getLang, accent: "#c2412d", bottom: matchMedia("(max-width: 899px)").matches ? 78 : 16 });
+
+// Android share sheet: an audio file shared to Kâtip (e.g. a voice message) arrives
+// through the service worker and is transcribed right away.
+async function takeShared() {
+  if (!location.hash.includes("shared=1")) return;
+  history.replaceState(null, "", location.pathname + "#/");
+  try {
+    const key = new URL("./shared-audio", document.baseURI).href;
+    const c = await caches.open("katip-share");
+    const r = await c.match(key);
+    if (!r) return;
+    await c.delete(key);
+    const name = decodeURIComponent(r.headers.get("x-name") || "audio");
+    const blob = await r.blob();
+    await importFile(new File([blob], name, { type: blob.type || r.headers.get("content-type") || "audio/ogg" }));
+  } catch (e) {
+    toast(`${t("error")}: ${e instanceof Error ? e.message : e}`);
+  }
+}
+render().then(takeShared);
